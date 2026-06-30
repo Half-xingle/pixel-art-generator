@@ -1,0 +1,19 @@
+{
+  "name": "pixel-art-generator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test src/",
+    "cli": "node cli.js"
+  },
+  "dependencies": {
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
