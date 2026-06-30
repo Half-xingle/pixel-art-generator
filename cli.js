@@ -33,18 +33,28 @@ async function cmdDraw(size, gridData, outputPath) {
 
 function showHelp() {
   console.log(`
-Usage: node cli.js <command> [options]
+🎨 像素画生成器 CLI — Pixel Art Generator
 
-Commands:
-  draw      Generate pixel art from a grid
-  convert   Convert an image to pixel art
+用法:
+  node cli.js draw --size <n> --grid <json> -o <file>
+  node cli.js draw --size <n> --file <path> -o <file>
+  node cli.js convert <image> --size <n> -o <file>
+  node cli.js --help
 
-Options:
-  --size <n>    Grid size (default: 16)
-  --grid <json> Grid data for draw command
-  --file <path> JSON file for draw command
-  -o <file>     Output file path (default: output.png)
-  --help        Show this help
+命令:
+  draw      从颜色网格生成像素画
+  convert   将图片转换为像素画
+
+选项:
+  --size <n>     网格尺寸（如 16 = 16×16），默认 16
+  --grid <json>  颜色二维数组 JSON
+  --file <path>  JSON 文件路径（格式同 draw）
+  -o <file>      输出图片路径，默认 output.png
+  --help         显示帮助信息
+
+示例:
+  node cli.js draw --size 2 --grid '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]' -o art.png
+  node cli.js convert photo.jpg --size 32 -o pixel-art.png
 `);
 }
 
@@ -89,6 +99,14 @@ async function main() {
 }
 
 main().catch(err => {
+  if (err.code === 'ENOENT') {
+    console.error(`Error: 文件不存在 — ${err.path}`);
+    process.exit(2);
+  }
+  if (err.message?.toLowerCase().includes('input file')) {
+    console.error(`Error: 无法读取图片 — ${err.message}`);
+    process.exit(2);
+  }
   console.error('Error:', err.message);
   process.exit(1);
 });
