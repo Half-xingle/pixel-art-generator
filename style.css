@@ -106,6 +106,23 @@ select, input[type="color"] {
 .btn-secondary { background: #0f3460; color: #e0e0e0; }
 .btn-secondary:hover { background: #1a4a80; }
 
+.ratio-label { color: #888; font-size: 0.9rem; }
+.ratio-btn {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid #0f3460;
+  background: transparent;
+  color: #888;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.ratio-btn.active {
+  background: #0f3460;
+  color: #e94560;
+  border-color: #e94560;
+}
+.ratio-btn:hover:not(.active) { background: #1a2a4e; }
+
 .draw-area {
   display: flex;
   justify-content: center;

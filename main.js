@@ -23,7 +23,30 @@ tabBtns.forEach(btn => {
 // ─── Draw tab ──────────────────────────────────────────────────────
 
 const drawCanvas = document.getElementById('canvas-draw');
-const pixelCanvas = new PixelCanvas(drawCanvas, 16);
+const drawWidth = document.getElementById('draw-width');
+const drawHeight = document.getElementById('draw-height');
+const pixelCanvas = new PixelCanvas(drawCanvas, 16, 16);
+
+// Apply size change when width or height input changes
+function applyDrawSize() {
+  const w = Math.max(1, parseInt(drawWidth.value) || 16);
+  const h = Math.max(1, parseInt(drawHeight.value) || 16);
+  pixelCanvas.setGridSize(w, h);
+}
+drawWidth.addEventListener('change', applyDrawSize);
+drawHeight.addEventListener('change', applyDrawSize);
+
+// Ratio presets for draw tab
+document.querySelectorAll('#tab-draw .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const [w, h] = btn.dataset.ratio.split(':').map(Number);
+    drawWidth.value = w * 4; // scale up for reasonable grid size
+    drawHeight.value = h * 4;
+    btn.closest('.controls').querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    applyDrawSize();
+  });
+});
 
 document.getElementById('draw-color').addEventListener('input', (e) => {
   pixelCanvas.setColor(e.target.value);
@@ -35,10 +58,6 @@ document.getElementById('btn-eraser').addEventListener('click', () => {
 
 document.getElementById('btn-clear').addEventListener('click', () => {
   if (confirm('确定清空画布？')) pixelCanvas.clear();
-});
-
-document.getElementById('draw-size').addEventListener('change', (e) => {
-  pixelCanvas.setGridSize(parseInt(e.target.value));
 });
 
 document.getElementById('btn-export-draw').addEventListener('click', () => {
@@ -55,13 +74,37 @@ const canvasConvert = document.getElementById('canvas-convert');
 const convertHint = document.getElementById('convert-hint');
 const btnConvert = document.getElementById('btn-convert');
 const btnExportConvert = document.getElementById('btn-export-convert');
-const convertSizeSelect = document.getElementById('convert-size');
+const convertWidth = document.getElementById('convert-width');
+const convertHeight = document.getElementById('convert-height');
 
 let lastImageData = null;
 let lastConvertResult = null;
 
+function applyAspectRatio(aspect) {
+  const w = parseInt(convertWidth.value) || 16;
+  let gw, gh;
+  if (aspect >= 1) {
+    gw = w;
+    gh = Math.max(1, Math.round(w / aspect));
+  } else {
+    gw = Math.max(1, Math.round(w * aspect));
+    gh = w;
+  }
+  convertWidth.value = gw;
+  convertHeight.value = gh;
+}
+
 setupUpload(uploadArea, fileInput, (imageData, img) => {
   lastImageData = imageData;
+
+  // Auto-detect aspect ratio from uploaded image
+  const aspect = imageData.width / imageData.height;
+  applyAspectRatio(aspect);
+
+  // Show "自动" as active
+  document.querySelectorAll('#tab-convert .ratio-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('#tab-convert .ratio-btn[data-ratio="auto"]').classList.add('active');
+
   previewImg.src = img.src;
   previewImg.hidden = false;
   uploadArea.querySelector('.upload-placeholder').style.display = 'none';
@@ -70,25 +113,35 @@ setupUpload(uploadArea, fileInput, (imageData, img) => {
   btnExportConvert.disabled = true;
 });
 
+// Ratio presets for convert tab
+document.querySelectorAll('#tab-convert .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#tab-convert .ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (btn.dataset.ratio === 'auto' && lastImageData) {
+      // Re-apply from original aspect ratio
+      const aspect = lastImageData.width / lastImageData.height;
+      applyAspectRatio(aspect);
+    } else if (btn.dataset.ratio !== 'auto') {
+      const [rw, rh] = btn.dataset.ratio.split(':').map(Number);
+      const curW = parseInt(convertWidth.value) || 16;
+      // Keep the set width, calculate height from ratio
+      const h = Math.max(1, Math.round(curW * rh / rw));
+      convertHeight.value = h;
+    }
+  });
+});
+
 btnConvert.addEventListener('click', async () => {
   if (!lastImageData) {
     alert('请先上传图片');
     return;
   }
 
-  const maxSize = Math.max(2, parseInt(convertSizeSelect.value) || 16);
+  const gridWidth = Math.max(1, parseInt(convertWidth.value) || 16);
+  const gridHeight = Math.max(1, parseInt(convertHeight.value) || 16);
   const { data, width, height } = lastImageData;
-
-  // Compute grid dimensions preserving aspect ratio
-  const aspect = width / height;
-  let gridWidth, gridHeight;
-  if (aspect >= 1) {
-    gridWidth = maxSize;
-    gridHeight = Math.max(1, Math.round(maxSize / aspect));
-  } else {
-    gridWidth = Math.max(1, Math.round(maxSize * aspect));
-    gridHeight = maxSize;
-  }
 
   const grid = toPixelArt(data, width, height, gridWidth, gridHeight);
   const cellSize = Math.max(2, Math.floor(512 / Math.max(gridWidth, gridHeight)));
@@ -107,7 +160,7 @@ btnConvert.addEventListener('click', async () => {
   convertHint.hidden = true;
   btnExportConvert.disabled = false;
 
-  lastConvertResult = { grid, cellSize };
+  lastConvertResult = { grid };
 });
 
 btnExportConvert.addEventListener('click', () => {

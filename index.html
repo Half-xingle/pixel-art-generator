@@ -32,9 +32,14 @@
         </div>
       </div>
       <div class="controls">
-        <label>像素尺寸：
-          <input type="number" id="convert-size" value="16" min="2" max="256" style="width:70px">
-        </label>
+        <label>宽：<input type="number" id="convert-width" value="16" min="1" max="256" style="width:60px"></label>
+        <label>高：<input type="number" id="convert-height" value="16" min="1" max="256" style="width:60px"></label>
+        <span class="ratio-label">比例：</span>
+        <button class="ratio-btn active" data-ratio="auto">自动</button>
+        <button class="ratio-btn" data-ratio="1:1">1:1</button>
+        <button class="ratio-btn" data-ratio="4:3">4:3</button>
+        <button class="ratio-btn" data-ratio="16:9">16:9</button>
+        <button class="ratio-btn" data-ratio="3:2">3:2</button>
         <button id="btn-convert" class="btn-primary">转换</button>
         <button id="btn-export-convert" class="btn-secondary" disabled>导出 PNG</button>
       </div>
@@ -49,9 +54,16 @@
         <label>颜色：<input type="color" id="draw-color" value="#ff0000"></label>
         <button id="btn-eraser" class="btn-secondary">橡皮擦</button>
         <button id="btn-clear" class="btn-secondary">清空</button>
-        <label>网格尺寸：
-          <input type="number" id="draw-size" value="16" min="2" max="128" style="width:70px">
-        </label>
+        <label>宽：<input type="number" id="draw-width" value="16" min="1" max="128" style="width:60px"></label>
+        <label>高：<input type="number" id="draw-height" value="16" min="1" max="128" style="width:60px"></label>
+        <span class="ratio-label">比例：</span>
+        <button class="ratio-btn" data-ratio="1:1">1:1</button>
+        <button class="ratio-btn" data-ratio="4:3">4:3</button>
+        <button class="ratio-btn" data-ratio="16:9">16:9</button>
+        <button class="ratio-btn" data-ratio="3:2">3:2</button>
+        <button class="ratio-btn" data-ratio="2:3">2:3</button>
+        <button class="ratio-btn" data-ratio="3:4">3:4</button>
+        <button class="ratio-btn" data-ratio="9:16">9:16</button>
         <button id="btn-export-draw" class="btn-primary">导出 PNG</button>
       </div>
     </section>

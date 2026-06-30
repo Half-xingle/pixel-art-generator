@@ -1,40 +1,42 @@
-import { renderGrid, gridToJSON, jsonToGrid, hexToRGBA, rgbaToHex } from '../core/processor.js';
+import { renderGrid, gridToJSON, jsonToGrid, hexToRGBA } from '../core/processor.js';
 
 const CELL_SIZE = 24; // Display pixels per grid cell on screen
 
 export class PixelCanvas {
   /**
    * @param {HTMLCanvasElement} canvasEl
-   * @param {number} gridSize - Width and height of the pixel grid
+   * @param {number} gridWidth - Width of the pixel grid
+   * @param {number} gridHeight - Height of the pixel grid
    */
-  constructor(canvasEl, gridSize = 16) {
+  constructor(canvasEl, gridWidth = 16, gridHeight = 16) {
     this.canvas = canvasEl;
     this.ctx = canvasEl.getContext('2d');
-    this.gridSize = gridSize;
+    this.gridWidth = gridWidth;
+    this.gridHeight = gridHeight;
     this.drawing = false;
     this.color = '#ff0000';
     this.eraser = false;
 
-    // Initialize empty grid (all white)
-    this.grid = this.createEmptyGrid(gridSize);
+    this.grid = this.createEmptyGrid(gridWidth, gridHeight);
 
     this.setupCanvas();
     this.setupEvents();
     this.render();
   }
 
-  createEmptyGrid(size) {
-    return Array.from({ length: size }, () =>
-      Array.from({ length: size }, () => ({ r: 255, g: 255, b: 255, a: 255 }))
+  createEmptyGrid(w, h) {
+    return Array.from({ length: h }, () =>
+      Array.from({ length: w }, () => ({ r: 255, g: 255, b: 255, a: 255 }))
     );
   }
 
   setupCanvas() {
-    const displaySize = this.gridSize * CELL_SIZE;
-    this.canvas.width = displaySize;
-    this.canvas.height = displaySize;
-    this.canvas.style.width = displaySize + 'px';
-    this.canvas.style.height = displaySize + 'px';
+    const displayW = this.gridWidth * CELL_SIZE;
+    const displayH = this.gridHeight * CELL_SIZE;
+    this.canvas.width = displayW;
+    this.canvas.height = displayH;
+    this.canvas.style.width = displayW + 'px';
+    this.canvas.style.height = displayH + 'px';
   }
 
   setupEvents() {
@@ -46,7 +48,7 @@ export class PixelCanvas {
     };
 
     const paint = (x, y) => {
-      if (x < 0 || x >= this.gridSize || y < 0 || y >= this.gridSize) return;
+      if (x < 0 || x >= this.gridWidth || y < 0 || y >= this.gridHeight) return;
       if (this.eraser) {
         this.grid[y][x] = { r: 255, g: 255, b: 255, a: 255 };
       } else {
@@ -75,40 +77,43 @@ export class PixelCanvas {
 
   render() {
     const ctx = this.ctx;
-    const size = this.gridSize * CELL_SIZE;
+    const displayW = this.gridWidth * CELL_SIZE;
+    const displayH = this.gridHeight * CELL_SIZE;
 
-    // Draw grid using renderGrid for the pixel blocks
     const { data } = renderGrid(this.grid, CELL_SIZE);
-    const imageData = new ImageData(data, size, size);
+    const imageData = new ImageData(data, displayW, displayH);
     ctx.putImageData(imageData, 0, 0);
 
     // Draw grid lines
     ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth = 0.5;
-    for (let i = 0; i <= this.gridSize; i++) {
+    for (let i = 0; i <= this.gridWidth; i++) {
       const pos = i * CELL_SIZE;
       ctx.beginPath();
       ctx.moveTo(pos, 0);
-      ctx.lineTo(pos, size);
+      ctx.lineTo(pos, displayH);
       ctx.stroke();
+    }
+    for (let i = 0; i <= this.gridHeight; i++) {
+      const pos = i * CELL_SIZE;
       ctx.beginPath();
       ctx.moveTo(0, pos);
-      ctx.lineTo(size, pos);
+      ctx.lineTo(displayW, pos);
       ctx.stroke();
     }
   }
 
-  setGridSize(newSize) {
+  setGridSize(newW, newH) {
     const oldGrid = this.grid;
-    const newGrid = this.createEmptyGrid(newSize);
-    // Copy overlapping pixels
-    for (let y = 0; y < Math.min(oldGrid.length, newSize); y++) {
-      for (let x = 0; x < Math.min(oldGrid[0].length, newSize); x++) {
+    const newGrid = this.createEmptyGrid(newW, newH);
+    for (let y = 0; y < Math.min(oldGrid.length, newH); y++) {
+      for (let x = 0; x < Math.min(oldGrid[0].length, newW); x++) {
         newGrid[y][x] = oldGrid[y][x];
       }
     }
     this.grid = newGrid;
-    this.gridSize = newSize;
+    this.gridWidth = newW;
+    this.gridHeight = newH;
     this.setupCanvas();
     this.render();
   }
@@ -123,13 +128,14 @@ export class PixelCanvas {
   }
 
   clear() {
-    this.grid = this.createEmptyGrid(this.gridSize);
+    this.grid = this.createEmptyGrid(this.gridWidth, this.gridHeight);
     this.render();
   }
 
   loadJSON(json) {
     this.grid = jsonToGrid(json);
-    this.gridSize = json.size;
+    this.gridWidth = this.grid[0].length;
+    this.gridHeight = this.grid.length;
     this.setupCanvas();
     this.render();
   }
@@ -140,7 +146,7 @@ export class PixelCanvas {
 
   /** Export current grid as PNG download */
   exportPNG() {
-    const exportCellSize = 32; // Higher res for export
+    const exportCellSize = 32;
     const { data, width, height } = renderGrid(this.grid, exportCellSize);
     const canvas = document.createElement('canvas');
     canvas.width = width;
