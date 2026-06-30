@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎨 像素画工坊</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>🎨 像素画工坊</h1>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="convert">转换</button>
+      <button class="tab-btn" data-tab="draw">绘画</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Convert Tab -->
+    <section id="tab-convert" class="tab-content active">
+      <div class="convert-layout">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-placeholder">
+            <p>拖拽图片到这里，或点击选择</p>
+            <input type="file" id="file-input" accept="image/*" hidden>
+          </div>
+          <img id="preview-original" class="preview-img" hidden>
+        </div>
+        <div class="result-area">
+          <canvas id="canvas-convert" hidden></canvas>
+          <p class="empty-hint" id="convert-hint">上传图片后点击"转换"</p>
+        </div>
+      </div>
+      <div class="controls">
+        <label>网格尺寸：
+          <select id="convert-size">
+            <option value="8">8×8</option>
+            <option value="16" selected>16×16</option>
+            <option value="24">24×24</option>
+            <option value="32">32×32</option>
+            <option value="48">48×48</option>
+            <option value="64">64×64</option>
+          </select>
+        </label>
+        <button id="btn-convert" class="btn-primary">转换</button>
+        <button id="btn-export-convert" class="btn-secondary" disabled>导出 PNG</button>
+      </div>
+    </section>
+
+    <!-- Draw Tab -->
+    <section id="tab-draw" class="tab-content">
+      <div class="draw-area">
+        <canvas id="canvas-draw"></canvas>
+      </div>
+      <div class="controls">
+        <label>颜色：<input type="color" id="draw-color" value="#ff0000"></label>
+        <button id="btn-eraser" class="btn-secondary">橡皮擦</button>
+        <button id="btn-clear" class="btn-secondary">清空</button>
+        <label>网格尺寸：
+          <select id="draw-size">
+            <option value="8">8×8</option>
+            <option value="16" selected>16×16</option>
+            <option value="24">24×24</option>
+            <option value="32">32×32</option>
+          </select>
+        </label>
+        <button id="btn-export-draw" class="btn-primary">导出 PNG</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/main.js"></script>
+</body>
+</html>
