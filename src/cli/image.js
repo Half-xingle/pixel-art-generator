@@ -6,7 +6,6 @@ import sharp from 'sharp';
  * @returns {Promise<{data: Uint8ClampedArray, width: number, height: number}>}
  */
 export async function readImage(filePath) {
-  const metadata = await sharp(filePath).metadata();
   const { data, info } = await sharp(filePath)
     .ensureAlpha()
     .raw()
