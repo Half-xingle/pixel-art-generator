@@ -20,6 +20,10 @@ export function hexToRGBA(hex) {
 }
 
 export function rgbaToHex({ r, g, b, a }) {
+  // 6-char for opaque pixels (common case), 8-char when alpha varies
+  if (a === 255) {
+    return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+  }
   return '#' + [r, g, b, a].map(c => c.toString(16).padStart(2, '0')).join('');
 }
 

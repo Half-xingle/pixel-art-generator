@@ -76,7 +76,7 @@ btnConvert.addEventListener('click', async () => {
     return;
   }
 
-  const maxSize = parseInt(convertSizeSelect.value);
+  const maxSize = Math.max(2, parseInt(convertSizeSelect.value) || 16);
   const { data, width, height } = lastImageData;
 
   // Compute grid dimensions preserving aspect ratio

@@ -12,7 +12,7 @@ describe('processor', () => {
   });
 
   it('rgbaToHex converts color with alpha', () => {
-    assert.equal(rgbaToHex({ r: 255, g: 0, b: 0, a: 255 }), '#ff0000ff');
+    assert.equal(rgbaToHex({ r: 255, g: 0, b: 0, a: 255 }), '#ff0000');
   });
 
   it('rgbaToHex handles zero alpha', () => {
@@ -88,7 +88,7 @@ describe('processor', () => {
     const json = gridToJSON(grid);
     assert.equal(json.width, 3);
     assert.equal(json.height, 2);
-    assert.equal(json.pixels[0][0], '#ff0000ff');
+    assert.equal(json.pixels[0][0], '#ff0000');
     const back = jsonToGrid(json);
     assert.deepEqual(back, grid);
   });
@@ -96,7 +96,7 @@ describe('processor', () => {
   it('jsonToGrid handles legacy {size, pixels} format', () => {
     const json = {
       size: 2,
-      pixels: [['#ff0000ff', '#00ff00ff'], ['#0000ffff', '#ffffffff']],
+      pixels: [['#ff0000', '#00ff00'], ['#0000ff', '#ffffff']],
     };
     const grid = jsonToGrid(json);
     assert.equal(grid.length, 2);

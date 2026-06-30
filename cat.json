@@ -1,0 +1,15 @@
+{
+  "size": 12,
+  "pixels": [
+    ["#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff"],
+    ["#ffffff","#ffffff","#ffffff","#ffffff","#000000","#000000","#000000","#000000","#ffffff","#ffffff","#ffffff","#ffffff"],
+    ["#ffffff","#ffffff","#ffffff","#000000","#ff9999","#ff9999","#ff9999","#ff9999","#000000","#ffffff","#ffffff","#ffffff"],
+    ["#ffffff","#ffffff","#000000","#ff9999","#ff9999","#ff9999","#ff9999","#ff9999","#ff9999","#000000","#ffffff","#ffffff"],
+    ["#ffffff","#000000","#999999","#999999","#999999","#000000","#000000","#999999","#999999","#999999","#000000","#ffffff"],
+    ["#ffffff","#000000","#ffffff","#ffffff","#ffffff","#44cc44","#44cc44","#ffffff","#ffffff","#ffffff","#000000","#ffffff"],
+    ["#ffffff","#000000","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#000000","#ffffff"],
+    ["#ffffff","#ffffff","#000000","#000000","#ffffff","#ff8888","#ff8888","#ffffff","#000000","#000000","#ffffff","#ffffff"],
+    ["#ffffff","#ffffff","#ffffff","#ffffff","#000000","#000000","#000000","#000000","#ffffff","#ffffff","#ffffff","#ffffff"],
+    ["#ffffff","#ffffff","#ffffff","#ffffff","#ffffff","#000000","#000000","#ffffff","#ffffff","#ffffff","#ffffff","#ffffff"]
+  ]
+}

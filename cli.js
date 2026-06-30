@@ -24,11 +24,23 @@ function parseArgs(argv) {
   };
 }
 
-async function cmdDraw(gridData, outputPath) {
-  const grid = jsonToGrid({ width: gridData[0].length, height: gridData.length, pixels: gridData });
-  const { data, width, height } = renderGrid(grid, CELL_SIZE);
+async function cmdDraw(gridData, outputPath, cellSize) {
+  let grid;
+  if (Array.isArray(gridData)) {
+    // Inline --grid data: just a 2D array
+    const h = gridData.length;
+    const w = gridData[0].length;
+    grid = jsonToGrid({ width: w, height: h, pixels: gridData });
+  } else {
+    // --file data: full JSON with width/height/pixels
+    grid = jsonToGrid(gridData);
+  }
+  const cs = cellSize || CELL_SIZE;
+  const { data, width, height } = renderGrid(grid, cs);
   await writePNG(data, width, height, outputPath);
-  console.log(`OK: pixel art saved to ${outputPath} (${gridData[0].length}×${gridData.length})`);
+  const gw = grid[0].length;
+  const gh = grid.length;
+  console.log(`OK: pixel art saved to ${outputPath} (${gw}×${gh})`);
 }
 
 function showHelp() {
@@ -36,7 +48,7 @@ function showHelp() {
 🎨 像素画生成器 CLI — Pixel Art Generator
 
 用法:
-  node cli.js draw --grid <json> -o <file>
+  node cli.js draw --grid <json> [--size <n>] -o <file>
   node cli.js draw --file <path> -o <file>
   node cli.js convert <image> --size <n> -o <file>
   node cli.js --help
@@ -46,9 +58,10 @@ function showHelp() {
   convert   将图片转换为像素画（自动保留宽高比）
 
 选项:
-  --size <n>     最长边的网格数（默认 16），另一侧自动按比例计算
+  --size <n>     draw: 每个像素的显示大小（默认 32，越大输出图越精细）
+                 convert: 最长边的网格数（默认 16），另一侧自动按比例计算
   --grid <json>  颜色二维数组 JSON
-  --file <path>  JSON 文件路径（格式同 draw）
+  --file <path>  JSON 文件路径（含 width/height/pixels 字段）
   -o <file>      输出图片路径，默认 output.png
   --help         显示帮助信息
 
@@ -102,12 +115,12 @@ async function main() {
         console.error('Error: JSON 文件格式无效');
         process.exit(1);
       }
-      gridData = json.pixels;
+      gridData = json; // Pass entire JSON object (includes width/height/pixels)
     } else {
       console.error('Error: use --grid <json> or --file <path>');
       process.exit(1);
     }
-    await cmdDraw(gridData, output);
+    await cmdDraw(gridData, output, size);
   } else if (command === 'convert') {
     if (!input) {
       console.error('Error: provide an image path');

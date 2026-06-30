@@ -32,15 +32,8 @@
         </div>
       </div>
       <div class="controls">
-        <label>网格尺寸：
-          <select id="convert-size">
-            <option value="8">8×8</option>
-            <option value="16" selected>16×16</option>
-            <option value="24">24×24</option>
-            <option value="32">32×32</option>
-            <option value="48">48×48</option>
-            <option value="64">64×64</option>
-          </select>
+        <label>像素尺寸：
+          <input type="number" id="convert-size" value="16" min="2" max="256" style="width:70px">
         </label>
         <button id="btn-convert" class="btn-primary">转换</button>
         <button id="btn-export-convert" class="btn-secondary" disabled>导出 PNG</button>
@@ -57,12 +50,7 @@
         <button id="btn-eraser" class="btn-secondary">橡皮擦</button>
         <button id="btn-clear" class="btn-secondary">清空</button>
         <label>网格尺寸：
-          <select id="draw-size">
-            <option value="8">8×8</option>
-            <option value="16" selected>16×16</option>
-            <option value="24">24×24</option>
-            <option value="32">32×32</option>
-          </select>
+          <input type="number" id="draw-size" value="16" min="2" max="128" style="width:70px">
         </label>
         <button id="btn-export-draw" class="btn-primary">导出 PNG</button>
       </div>
