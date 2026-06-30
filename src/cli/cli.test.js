@@ -1,4 +1,4 @@
-import { describe, it, after } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, statSync, unlinkSync } from 'node:fs';
@@ -23,5 +23,33 @@ describe('cli draw', () => {
     assert.ok(existsSync(outFile));
     const stats = statSync(outFile);
     assert.ok(stats.size > 0);
+  });
+});
+
+describe('cli convert', () => {
+  const outFile = join(__dirname, '..', 'test-convert-output.png');
+  const testInput = join(__dirname, '..', 'test-input.png');
+
+  before(async () => {
+    const { writePNG } = await import('./image.js');
+    const { renderGrid } = await import('../core/processor.js');
+    const grid = [
+      [{ r: 255, g: 0, b: 0, a: 255 }, { r: 0, g: 255, b: 0, a: 255 }],
+      [{ r: 0, g: 0, b: 255, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
+    ];
+    const { data, width, height } = renderGrid(grid, 4);
+    await writePNG(data, width, height, testInput);
+  });
+
+  after(() => {
+    try { unlinkSync(outFile); } catch {}
+    try { unlinkSync(testInput); } catch {}
+  });
+
+  it('converts an image to pixel art', () => {
+    const result = spawnSync(process.execPath, [CLI, 'convert', testInput, '--size', '2', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('OK'));
+    assert.ok(existsSync(outFile));
   });
 });
