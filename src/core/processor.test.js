@@ -41,7 +41,7 @@ describe('processor', () => {
       }
     }
 
-    const grid = toPixelArt(data, 4, 4, 2);
+    const grid = toPixelArt(data, 4, 4, 2, 2);
     assert.equal(grid.length, 2);
     assert.equal(grid[0].length, 2);
     // Top-left cell samples from 0,0 region → red
@@ -50,6 +50,22 @@ describe('processor', () => {
     // Bottom-right cell samples from 3,3 region → blue
     assert.equal(grid[1][1].r, 0);
     assert.equal(grid[1][1].b, 255);
+  });
+
+  it('toPixelArt preserves 4:3 aspect ratio', () => {
+    // Create a 4x3 image: 4 columns, 3 rows
+    const data = new Uint8ClampedArray(4 * 3 * 4);
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0; data[i + 1] = 255; data[i + 2] = 0; data[i + 3] = 255; // green
+    }
+    // Make top-left pixel red
+    data[0] = 255; data[1] = 0; data[2] = 0;
+
+    const grid = toPixelArt(data, 4, 3, 4, 3);
+    assert.equal(grid.length, 3);
+    assert.equal(grid[0].length, 4);
+    assert.equal(grid[0][0].r, 255); // top-left is red
+    assert.equal(grid[2][3].r, 0); // bottom-right is green
   });
 
   it('renderGrid produces correct size output', () => {
@@ -63,15 +79,28 @@ describe('processor', () => {
     assert.equal(result.data.length, 8 * 8 * 4);
   });
 
-  it('gridToJSON and jsonToGrid round-trips', () => {
+  it('gridToJSON and jsonToGrid round-trips rectangular', () => {
+    // 3×2 grid (3 columns, 2 rows)
     const grid = [
-      [{ r: 255, g: 0, b: 0, a: 255 }, { r: 0, g: 255, b: 0, a: 255 }],
-      [{ r: 0, g: 0, b: 255, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
+      [{ r: 255, g: 0, b: 0, a: 255 }, { r: 0, g: 255, b: 0, a: 255 }, { r: 0, g: 0, b: 255, a: 255 }],
+      [{ r: 255, g: 255, b: 255, a: 255 }, { r: 128, g: 128, b: 128, a: 255 }, { r: 0, g: 0, b: 0, a: 255 }],
     ];
     const json = gridToJSON(grid);
-    assert.equal(json.size, 2);
+    assert.equal(json.width, 3);
+    assert.equal(json.height, 2);
     assert.equal(json.pixels[0][0], '#ff0000ff');
     const back = jsonToGrid(json);
     assert.deepEqual(back, grid);
+  });
+
+  it('jsonToGrid handles legacy {size, pixels} format', () => {
+    const json = {
+      size: 2,
+      pixels: [['#ff0000ff', '#00ff00ff'], ['#0000ffff', '#ffffffff']],
+    };
+    const grid = jsonToGrid(json);
+    assert.equal(grid.length, 2);
+    assert.equal(grid[0].length, 2);
+    assert.equal(grid[0][0].r, 255);
   });
 });

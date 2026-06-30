@@ -76,11 +76,22 @@ btnConvert.addEventListener('click', async () => {
     return;
   }
 
-  const size = parseInt(convertSizeSelect.value);
+  const maxSize = parseInt(convertSizeSelect.value);
   const { data, width, height } = lastImageData;
 
-  const grid = toPixelArt(data, width, height, size);
-  const cellSize = Math.max(2, Math.floor(512 / size));
+  // Compute grid dimensions preserving aspect ratio
+  const aspect = width / height;
+  let gridWidth, gridHeight;
+  if (aspect >= 1) {
+    gridWidth = maxSize;
+    gridHeight = Math.max(1, Math.round(maxSize / aspect));
+  } else {
+    gridWidth = Math.max(1, Math.round(maxSize * aspect));
+    gridHeight = maxSize;
+  }
+
+  const grid = toPixelArt(data, width, height, gridWidth, gridHeight);
+  const cellSize = Math.max(2, Math.floor(512 / Math.max(gridWidth, gridHeight)));
   const result = renderGrid(grid, cellSize);
 
   // Display on canvas

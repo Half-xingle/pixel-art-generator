@@ -24,11 +24,11 @@ function parseArgs(argv) {
   };
 }
 
-async function cmdDraw(size, gridData, outputPath) {
-  const grid = jsonToGrid({ size, pixels: gridData });
+async function cmdDraw(gridData, outputPath) {
+  const grid = jsonToGrid({ width: gridData[0].length, height: gridData.length, pixels: gridData });
   const { data, width, height } = renderGrid(grid, CELL_SIZE);
   await writePNG(data, width, height, outputPath);
-  console.log(`OK: pixel art saved to ${outputPath}`);
+  console.log(`OK: pixel art saved to ${outputPath} (${gridData[0].length}×${gridData.length})`);
 }
 
 function showHelp() {
@@ -36,34 +36,44 @@ function showHelp() {
 🎨 像素画生成器 CLI — Pixel Art Generator
 
 用法:
-  node cli.js draw --size <n> --grid <json> -o <file>
-  node cli.js draw --size <n> --file <path> -o <file>
+  node cli.js draw --grid <json> -o <file>
+  node cli.js draw --file <path> -o <file>
   node cli.js convert <image> --size <n> -o <file>
   node cli.js --help
 
 命令:
   draw      从颜色网格生成像素画
-  convert   将图片转换为像素画
+  convert   将图片转换为像素画（自动保留宽高比）
 
 选项:
-  --size <n>     网格尺寸（如 16 = 16×16），默认 16
+  --size <n>     最长边的网格数（默认 16），另一侧自动按比例计算
   --grid <json>  颜色二维数组 JSON
   --file <path>  JSON 文件路径（格式同 draw）
   -o <file>      输出图片路径，默认 output.png
   --help         显示帮助信息
 
 示例:
-  node cli.js draw --size 2 --grid '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]' -o art.png
+  node cli.js draw --grid '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]' -o art.png
   node cli.js convert photo.jpg --size 32 -o pixel-art.png
 `);
 }
 
-async function cmdConvert(imagePath, size, outputPath) {
+async function cmdConvert(imagePath, maxSize, outputPath) {
   const { data, width, height } = await readImage(imagePath);
-  const grid = toPixelArt(data, width, height, size);
+  // Compute grid dimensions preserving aspect ratio
+  const aspect = width / height;
+  let gridWidth, gridHeight;
+  if (aspect >= 1) {
+    gridWidth = maxSize;
+    gridHeight = Math.max(1, Math.round(maxSize / aspect));
+  } else {
+    gridWidth = Math.max(1, Math.round(maxSize * aspect));
+    gridHeight = maxSize;
+  }
+  const grid = toPixelArt(data, width, height, gridWidth, gridHeight);
   const result = renderGrid(grid, CELL_SIZE);
   await writePNG(result.data, result.width, result.height, outputPath);
-  console.log(`OK: pixel art saved to ${outputPath}`);
+  console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);
 }
 
 async function main() {
@@ -97,7 +107,7 @@ async function main() {
       console.error('Error: use --grid <json> or --file <path>');
       process.exit(1);
     }
-    await cmdDraw(size, gridData, output);
+    await cmdDraw(gridData, output);
   } else if (command === 'convert') {
     if (!input) {
       console.error('Error: provide an image path');
