@@ -11,12 +11,12 @@ describe('processor', () => {
     assert.deepEqual(hexToRGBA('#000000'), { r: 0, g: 0, b: 0, a: 255 });
   });
 
-  it('rgbaToHex converts color', () => {
-    assert.equal(rgbaToHex({ r: 255, g: 0, b: 0, a: 255 }), '#ff0000');
+  it('rgbaToHex converts color with alpha', () => {
+    assert.equal(rgbaToHex({ r: 255, g: 0, b: 0, a: 255 }), '#ff0000ff');
   });
 
   it('rgbaToHex handles zero alpha', () => {
-    assert.equal(rgbaToHex({ r: 0, g: 0, b: 0, a: 0 }), '#000000');
+    assert.equal(rgbaToHex({ r: 0, g: 0, b: 0, a: 0 }), '#00000000');
   });
 
   it('toPixelArt downsamples 4x4 image to 2x2 grid', () => {
@@ -70,7 +70,7 @@ describe('processor', () => {
     ];
     const json = gridToJSON(grid);
     assert.equal(json.size, 2);
-    assert.equal(json.pixels[0][0], '#ff0000');
+    assert.equal(json.pixels[0][0], '#ff0000ff');
     const back = jsonToGrid(json);
     assert.deepEqual(back, grid);
   });

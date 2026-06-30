@@ -72,10 +72,26 @@ async function main() {
   if (command === 'draw') {
     let gridData;
     if (grid) {
-      gridData = JSON.parse(grid);
+      try {
+        gridData = JSON.parse(grid);
+      } catch {
+        console.error('Error: JSON 格式无效');
+        process.exit(1);
+      }
     } else if (file) {
-      const content = readFileSync(file, 'utf-8');
-      const json = JSON.parse(content);
+      let content, json;
+      try {
+        content = readFileSync(file, 'utf-8');
+      } catch {
+        console.error(`Error: 无法读取文件 — ${file}`);
+        process.exit(2);
+      }
+      try {
+        json = JSON.parse(content);
+      } catch {
+        console.error('Error: JSON 文件格式无效');
+        process.exit(1);
+      }
       gridData = json.pixels;
     } else {
       console.error('Error: use --grid <json> or --file <path>');

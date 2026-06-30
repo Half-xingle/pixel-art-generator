@@ -20,8 +20,7 @@ export function hexToRGBA(hex) {
 }
 
 export function rgbaToHex({ r, g, b, a }) {
-  if (a === 0) return '#000000';
-  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+  return '#' + [r, g, b, a].map(c => c.toString(16).padStart(2, '0')).join('');
 }
 
 // ─── Pixel art core algorithms ────────────────────────────────────
@@ -35,6 +34,9 @@ export function rgbaToHex({ r, g, b, a }) {
  * @returns {{r:number,g:number,b:number,a:number}[][]} grid[y][x]
  */
 export function toPixelArt(data, width, height, gridSize) {
+  if (gridSize < 1 || !Number.isInteger(gridSize)) {
+    throw new RangeError('gridSize must be a positive integer');
+  }
   const grid = [];
   for (let gy = 0; gy < gridSize; gy++) {
     const row = [];
@@ -63,6 +65,8 @@ export function toPixelArt(data, width, height, gridSize) {
  */
 export function renderGrid(grid, cellSize = 32) {
   const gridSize = grid.length;
+  if (gridSize < 1) throw new RangeError('grid must not be empty');
+  if (cellSize < 1) throw new RangeError('cellSize must be positive');
   const outSize = gridSize * cellSize;
   const data = new Uint8ClampedArray(outSize * outSize * 4);
 
