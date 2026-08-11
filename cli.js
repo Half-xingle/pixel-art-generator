@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { jsonToGrid, renderGrid, toPixelArt, gridToJSON } from './src/core/processor.js';
+import { jsonToGrid, renderGrid, toPixelArt, gridToJSON, rgbaToHex } from './src/core/processor.js';
 import { readImage, readImageSize, writePNG } from './src/cli/image.js';
 import { quantizeGrid, DEFAULT_PALETTE } from './src/core/palette.js';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -36,6 +36,20 @@ async function readStdin() {
   return Buffer.concat(chunks).toString('utf-8');
 }
 
+const opts = parseArgs(process.argv);
+
+/** Print an error message; JSON mode emits {"ok":false,...} on stderr. */
+function fail(message, code) {
+  if (opts.json) console.error(JSON.stringify({ ok: false, error: message }));
+  else console.error(`Error: ${message}`);
+  process.exit(code);
+}
+
+/** Distinct color count in a grid. */
+function countColors(grid) {
+  return new Set(grid.flat().map(rgbaToHex)).size;
+}
+
 async function cmdDraw(gridData, outputPath, cellSize) {
   // jsonToGrid accepts a bare 2D array (--grid), {width,height,pixels}, or legacy {size,pixels}
   const grid = jsonToGrid(gridData);
@@ -44,7 +58,11 @@ async function cmdDraw(gridData, outputPath, cellSize) {
   await writePNG(data, width, height, outputPath);
   const gw = grid[0].length;
   const gh = grid.length;
-  console.log(`OK: pixel art saved to ${outputPath} (${gw}×${gh})`);
+  if (opts.json) {
+    console.log(JSON.stringify({ ok: true, file: outputPath, grid: { width: gw, height: gh }, colors: countColors(grid) }));
+  } else {
+    console.log(`OK: pixel art saved to ${outputPath} (${gw}×${gh})`);
+  }
 }
 
 function showHelp() {
@@ -88,8 +106,7 @@ function computeGridDims(width, height, maxSize) {
 function resolvePalette(name) {
   if (!name) return null;
   if (name === 'nes') return DEFAULT_PALETTE;
-  console.error(`Error: 未知调色板: ${name}（支持: nes）`);
-  process.exit(1);
+  fail(`未知调色板: ${name}（支持: nes）`, 1);
 }
 
 async function cmdConvert(imagePath, maxSize, palette, outputPath) {
@@ -101,7 +118,11 @@ async function cmdConvert(imagePath, maxSize, palette, outputPath) {
   if (palette) grid = quantizeGrid(grid, palette);
   const result = renderGrid(grid, CELL_SIZE);
   await writePNG(result.data, result.width, result.height, outputPath);
-  console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);
+  if (opts.json) {
+    console.log(JSON.stringify({ ok: true, file: outputPath, grid: { width: gridWidth, height: gridHeight }, colors: countColors(grid) }));
+  } else {
+    console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);
+  }
 }
 
 async function cmdPixels(imagePath, maxSize, palette, outputPath, json) {
@@ -113,15 +134,22 @@ async function cmdPixels(imagePath, maxSize, palette, outputPath, json) {
   const payload = JSON.stringify(gridToJSON(grid));
   if (outputPath) {
     writeFileSync(outputPath, payload, 'utf-8');
-    console.log(`OK: grid saved to ${outputPath} (${gridWidth}×${gridHeight})`);
+    if (opts.json) {
+      console.log(JSON.stringify({ ok: true, file: outputPath, grid: { width: gridWidth, height: gridHeight }, colors: countColors(grid) }));
+    } else {
+      console.log(`OK: grid saved to ${outputPath} (${gridWidth}×${gridHeight})`);
+    }
   } else {
     // stdout is the payload itself — nothing else may be printed
     process.stdout.write(payload + '\n');
+    if (opts.json) {
+      console.error(JSON.stringify({ ok: true, file: null, grid: { width: gridWidth, height: gridHeight }, colors: countColors(grid) }));
+    }
   }
 }
 
 async function main() {
-  const { command, input, size, grid, file, output, palette, json } = parseArgs(process.argv);
+  const { command, input, size, grid, file, output, palette, json } = opts;
 
   if (command === 'draw') {
     let gridData;
@@ -129,22 +157,19 @@ async function main() {
       try {
         gridData = JSON.parse(grid);
       } catch {
-        console.error('Error: JSON 格式无效');
-        process.exit(1);
+        fail('JSON 格式无效', 1);
       }
     } else if (file) {
       let content, json;
       try {
         content = readFileSync(file, 'utf-8');
       } catch {
-        console.error(`Error: 无法读取文件 — ${file}`);
-        process.exit(2);
+        fail(`无法读取文件 — ${file}`, 2);
       }
       try {
         json = JSON.parse(content);
       } catch {
-        console.error('Error: JSON 文件格式无效');
-        process.exit(1);
+        fail('JSON 文件格式无效', 1);
       }
       gridData = json; // Pass entire JSON object (includes width/height/pixels)
     } else if (input === '-') {
@@ -152,53 +177,41 @@ async function main() {
       try {
         content = await readStdin();
       } catch {
-        console.error('Error: 无法读取 stdin');
-        process.exit(2);
+        fail('无法读取 stdin', 2);
       }
       try {
         json = JSON.parse(content);
       } catch {
-        console.error('Error: stdin JSON 格式无效');
-        process.exit(1);
+        fail('stdin JSON 格式无效', 1);
       }
       gridData = json;
     } else {
-      console.error('Error: use --grid <json>, --file <path>, or - (stdin)');
-      process.exit(1);
+      fail('use --grid <json>, --file <path>, or - (stdin)', 1);
     }
     await cmdDraw(gridData, output || 'output.png', size);
   } else if (command === 'convert') {
     if (!input) {
-      console.error('Error: provide an image path');
-      console.error('Usage: node cli.js convert <image> --size <n> -o <file>');
-      process.exit(1);
+      fail('provide an image path', 1);
     }
     await cmdConvert(input, size, resolvePalette(palette), output || 'output.png');
   } else if (command === 'pixels') {
     if (!input) {
-      console.error('Error: provide an image path');
-      console.error('Usage: node cli.js pixels <image> [--size <n>] [-o <file>]');
-      process.exit(1);
+      fail('provide an image path', 1);
     }
     await cmdPixels(input, size, resolvePalette(palette), output, json);
   } else if (command === '--help' || command === '-h' || command === undefined) {
     showHelp();
   } else {
-    console.error(`Unknown command: ${command}`);
-    console.error('Run "node cli.js --help" for usage.');
-    process.exit(1);
+    fail(`Unknown command: ${command}`, 1);
   }
 }
 
 main().catch(err => {
   if (err.code === 'ENOENT') {
-    console.error(`Error: 文件不存在 — ${err.path}`);
-    process.exit(2);
+    fail(`文件不存在 — ${err.path}`, 2);
   }
   if (err.message?.toLowerCase().includes('input file')) {
-    console.error(`Error: 无法读取图片 — ${err.message}`);
-    process.exit(2);
+    fail(`无法读取图片 — ${err.message}`, 2);
   }
-  console.error('Error:', err.message);
-  process.exit(1);
+  fail(err.message, 1);
 });

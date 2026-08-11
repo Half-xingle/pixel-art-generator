@@ -102,3 +102,36 @@ describe('cli pixels round-trip', () => {
     assert.deepEqual(a, b);
   });
 });
+
+describe('cli --json', () => {
+  const outFile = join(__dirname, '..', 'test-json-output.png');
+
+  after(() => {
+    try { unlinkSync(outFile); } catch {}
+  });
+
+  it('draw --json prints a parseable result object', () => {
+    const grid = '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]';
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--size', '2', '--grid', grid, '--json', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.ok, true);
+    assert.equal(json.grid.width, 2);
+    assert.equal(json.grid.height, 2);
+    assert.equal(json.colors, 4);
+  });
+
+  it('convert --json prints error JSON on stderr with exit 2 for missing file', () => {
+    const result = spawnSync(process.execPath, [CLI, 'convert', join(__dirname, '..', 'no-such-file.png'), '--json', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 2);
+    const err = JSON.parse(result.stderr);
+    assert.equal(err.ok, false);
+    assert.ok(typeof err.error === 'string' && err.error.length > 0);
+  });
+
+  it('stdout stays empty of non-JSON on error', () => {
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--json', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 1);
+    assert.equal(result.stdout, '');
+  });
+});
