@@ -76,20 +76,23 @@ export function renderGrid(grid, cellSize = 32) {
   const outWidth = gridWidth * cellSize;
   const outHeight = gridHeight * cellSize;
   const data = new Uint8ClampedArray(outWidth * outHeight * 4);
+  const row = new Uint8ClampedArray(outWidth * 4); // one output row, reused per grid row
 
   for (let gy = 0; gy < gridHeight; gy++) {
+    // Fill each cell's span of the row buffer once instead of per output pixel
     for (let gx = 0; gx < gridWidth; gx++) {
       const { r, g, b, a } = grid[gy][gx];
-      for (let dy = 0; dy < cellSize; dy++) {
-        for (let dx = 0; dx < cellSize; dx++) {
-          const px = (gy * cellSize + dy) * outWidth + (gx * cellSize + dx);
-          const idx = px * 4;
-          data[idx] = r;
-          data[idx + 1] = g;
-          data[idx + 2] = b;
-          data[idx + 3] = a;
-        }
+      const start = gx * cellSize * 4;
+      for (let i = 0; i < cellSize * 4; i += 4) {
+        row[start + i] = r;
+        row[start + i + 1] = g;
+        row[start + i + 2] = b;
+        row[start + i + 3] = a;
       }
+    }
+    // Blit the row down cellSize times
+    for (let dy = 0; dy < cellSize; dy++) {
+      data.set(row, (gy * cellSize + dy) * outWidth * 4);
     }
   }
   return { data, width: outWidth, height: outHeight };
@@ -106,9 +109,19 @@ export function gridToJSON(grid) {
 }
 
 export function jsonToGrid(json) {
-  const { width, height, size, pixels } = json;
-  const h = height || size;
-  const w = width || size;
+  // Accept a bare 2D array (inline --grid), {width,height,pixels}, or legacy {size,pixels}
+  let pixels;
+  let h;
+  if (Array.isArray(json)) {
+    pixels = json;
+    h = pixels.length;
+  } else {
+    pixels = json.pixels;
+    h = json.height || json.size;
+  }
+  if (!pixels || h < 1 || !Array.isArray(pixels[0])) {
+    throw new RangeError('invalid grid JSON: expected pixels array');
+  }
   const grid = [];
   for (let y = 0; y < h; y++) {
     grid.push(pixels[y].map(hex => hexToRGBA(hex)));

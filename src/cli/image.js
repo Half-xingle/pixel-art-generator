@@ -1,16 +1,34 @@
 import sharp from 'sharp';
 
 /**
- * Read an image file and return raw RGBA pixel data.
+ * Read image dimensions without decoding the full image.
  * @param {string} filePath
- * @returns {Promise<{data: Uint8ClampedArray, width: number, height: number}>}
+ * @returns {Promise<{width: number, height: number}>}
  */
-export async function readImage(filePath) {
-  const { data, info } = await sharp(filePath)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  return { data: new Uint8ClampedArray(data), width: info.width, height: info.height };
+export async function readImageSize(filePath) {
+  const { width, height } = await sharp(filePath).metadata();
+  return { width, height };
+}
+
+/**
+ * Read an image file and return raw RGBA pixel data.
+ * When a target dimension is given, the image is downscaled with
+ * nearest-neighbor sampling before decoding (pixel-art friendly), so
+ * huge photos never get decoded at full resolution.
+ * @param {string} filePath
+ * @param {number} [targetWidth] - Resize width; height follows proportionally
+ * @param {number} [targetHeight] - Resize height; width follows proportionally
+ * @returns {Promise<{data: Uint8ClampedArray|Buffer, width: number, height: number}>}
+ */
+export async function readImage(filePath, targetWidth, targetHeight) {
+  let pipeline = sharp(filePath).ensureAlpha();
+  if (targetWidth || targetHeight) {
+    // fit: 'inside' keeps the aspect ratio and never crops; the decoded size
+    // may differ from the targets by a pixel, so callers must use info.width/height
+    pipeline = pipeline.resize(targetWidth, targetHeight, { kernel: 'nearest', fit: 'inside' });
+  }
+  const { data, info } = await pipeline.raw().toBuffer({ resolveWithObject: true });
+  return { data, width: info.width, height: info.height };
 }
 
 /**

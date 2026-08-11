@@ -1,4 +1,5 @@
-import { renderGrid, gridToJSON, jsonToGrid, hexToRGBA } from '../core/processor.js';
+import { renderGrid, hexToRGBA } from '../core/processor.js';
+import { gridToPNGDataURL } from './export.js';
 
 const CELL_SIZE = 24; // Display pixels per grid cell on screen
 
@@ -55,20 +56,19 @@ export class PixelCanvas {
         const { r, g, b } = hexToRGBA(this.color);
         this.grid[y][x] = { r, g, b, a: 255 };
       }
+      this.paintCell(x, y);
     };
 
     this.canvas.addEventListener('mousedown', (e) => {
       this.drawing = true;
       const { x, y } = getCell(e);
       paint(x, y);
-      this.render();
     });
 
     this.canvas.addEventListener('mousemove', (e) => {
       if (!this.drawing) return;
       const { x, y } = getCell(e);
       paint(x, y);
-      this.render();
     });
 
     window.addEventListener('mouseup', () => { this.drawing = false; });
@@ -84,23 +84,37 @@ export class PixelCanvas {
     const imageData = new ImageData(data, displayW, displayH);
     ctx.putImageData(imageData, 0, 0);
 
-    // Draw grid lines
+    // Draw grid lines — one path so the canvas strokes once, not per line
     ctx.strokeStyle = 'rgba(255,255,255,0.1)';
     ctx.lineWidth = 0.5;
+    ctx.beginPath();
     for (let i = 0; i <= this.gridWidth; i++) {
-      const pos = i * CELL_SIZE;
-      ctx.beginPath();
-      ctx.moveTo(pos, 0);
-      ctx.lineTo(pos, displayH);
-      ctx.stroke();
+      ctx.moveTo(i * CELL_SIZE, 0);
+      ctx.lineTo(i * CELL_SIZE, displayH);
     }
     for (let i = 0; i <= this.gridHeight; i++) {
-      const pos = i * CELL_SIZE;
-      ctx.beginPath();
-      ctx.moveTo(0, pos);
-      ctx.lineTo(displayW, pos);
-      ctx.stroke();
+      ctx.moveTo(0, i * CELL_SIZE);
+      ctx.lineTo(displayW, i * CELL_SIZE);
     }
+    ctx.stroke();
+  }
+
+  /** Repaint a single cell and its four grid lines (drag-painting hot path). */
+  paintCell(x, y) {
+    const { r, g, b, a } = this.grid[y][x];
+    const ctx = this.ctx;
+    const x0 = x * CELL_SIZE;
+    const y0 = y * CELL_SIZE;
+    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+    ctx.fillRect(x0, y0, CELL_SIZE, CELL_SIZE);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0, y0 + CELL_SIZE);
+    ctx.moveTo(x0 + CELL_SIZE, y0); ctx.lineTo(x0 + CELL_SIZE, y0 + CELL_SIZE);
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + CELL_SIZE, y0);
+    ctx.moveTo(x0, y0 + CELL_SIZE); ctx.lineTo(x0 + CELL_SIZE, y0 + CELL_SIZE);
+    ctx.stroke();
   }
 
   setGridSize(newW, newH) {
@@ -132,28 +146,8 @@ export class PixelCanvas {
     this.render();
   }
 
-  loadJSON(json) {
-    this.grid = jsonToGrid(json);
-    this.gridWidth = this.grid[0].length;
-    this.gridHeight = this.grid.length;
-    this.setupCanvas();
-    this.render();
-  }
-
-  toJSON() {
-    return gridToJSON(this.grid);
-  }
-
-  /** Export current grid as PNG download */
+  /** Export current grid as PNG data URL */
   exportPNG() {
-    const exportCellSize = 32;
-    const { data, width, height } = renderGrid(this.grid, exportCellSize);
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(data, width, height);
-    ctx.putImageData(imageData, 0, 0);
-    return canvas.toDataURL('image/png');
+    return gridToPNGDataURL(this.grid, 32);
   }
 }

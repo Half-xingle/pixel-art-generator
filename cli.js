@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { jsonToGrid, renderGrid, toPixelArt } from './src/core/processor.js';
-import { readImage, writePNG } from './src/cli/image.js';
+import { readImage, readImageSize, writePNG } from './src/cli/image.js';
 import { readFileSync } from 'node:fs';
 
 const CELL_SIZE = 32;
@@ -25,16 +25,8 @@ function parseArgs(argv) {
 }
 
 async function cmdDraw(gridData, outputPath, cellSize) {
-  let grid;
-  if (Array.isArray(gridData)) {
-    // Inline --grid data: just a 2D array
-    const h = gridData.length;
-    const w = gridData[0].length;
-    grid = jsonToGrid({ width: w, height: h, pixels: gridData });
-  } else {
-    // --file data: full JSON with width/height/pixels
-    grid = jsonToGrid(gridData);
-  }
+  // jsonToGrid accepts a bare 2D array (--grid), {width,height,pixels}, or legacy {size,pixels}
+  const grid = jsonToGrid(gridData);
   const cs = cellSize || CELL_SIZE;
   const { data, width, height } = renderGrid(grid, cs);
   await writePNG(data, width, height, outputPath);
@@ -72,7 +64,7 @@ function showHelp() {
 }
 
 async function cmdConvert(imagePath, maxSize, outputPath) {
-  const { data, width, height } = await readImage(imagePath);
+  const { width, height } = await readImageSize(imagePath);
   // Compute grid dimensions preserving aspect ratio
   const aspect = width / height;
   let gridWidth, gridHeight;
@@ -83,7 +75,9 @@ async function cmdConvert(imagePath, maxSize, outputPath) {
     gridWidth = Math.max(1, Math.round(maxSize * aspect));
     gridHeight = maxSize;
   }
-  const grid = toPixelArt(data, width, height, gridWidth, gridHeight);
+  // Decode already downscaled to the grid — avoids decoding the full image
+  const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
+  const grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
   const result = renderGrid(grid, CELL_SIZE);
   await writePNG(result.data, result.width, result.height, outputPath);
   console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);

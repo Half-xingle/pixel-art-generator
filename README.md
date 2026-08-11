@@ -57,8 +57,7 @@ node cli.js --help
 ├── cli.js              # CLI 入口
 ├── src/
 │   ├── core/           # 核心算法（GUI + CLI 共享）
-│   │   ├── processor.js
-│   │   └── palette.js
+│   │   └── processor.js
 │   ├── gui/            # GUI 模块
 │   │   ├── canvas.js
 │   │   ├── upload.js

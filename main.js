@@ -1,25 +1,56 @@
 import { PixelCanvas } from './src/gui/canvas.js';
 import { setupUpload } from './src/gui/upload.js';
-import { downloadPNG } from './src/gui/export.js';
+import { downloadPNG, gridToPNGDataURL } from './src/gui/export.js';
 import { toPixelArt, renderGrid } from './src/core/processor.js';
 
-// ─── Helper: apply ratio constraint ──────────────────────────────────
+// ─── Ratio helpers ────────────────────────────────────────────────
 
-/** Set up a pair of width/height inputs linked by a ratio constraint.
- *  `resolveRatio(aspect)` returns {w, h} given the aspect ratio (w/h).
- *  Called on upload to set initial values. */
+/**
+ * Derived dimension for a ratio. `ratio` is either an integer pair {rw,rh}
+ * (strict: null when the result is not an integer) or a float aspect (w/h,
+ * rounded result).
+ */
+function derivedFromWidth(ratio, w) {
+  if (typeof ratio === 'number') return Math.round(w / ratio);
+  const h = w * ratio.rh / ratio.rw;
+  return Number.isInteger(h) ? h : null;
+}
+
+function derivedFromHeight(ratio, h) {
+  if (typeof ratio === 'number') return Math.round(h * ratio);
+  const w = h * ratio.rw / ratio.rh;
+  return Number.isInteger(w) ? w : null;
+}
+
+/** Fit the current input values to `ratio`; returns true if a fit was applied. */
+function fitToRatio(ratio, wInput, hInput) {
+  const w = parseInt(wInput.value);
+  const h = parseInt(hInput.value);
+  if (w && w >= 1) {
+    const d = derivedFromWidth(ratio, w);
+    if (d !== null && d >= 1) { hInput.value = d; return true; }
+  }
+  if (h && h >= 1) {
+    const d = derivedFromHeight(ratio, h);
+    if (d !== null && d >= 1) { wInput.value = d; return true; }
+  }
+  return false;
+}
+
+/**
+ * Link a width/height input pair to a ratio constraint.
+ * `getRatio()` returns {rw,rh}, a float aspect (w/h), or null for free mode.
+ * Returns { fit() } to apply the current ratio to the inputs programmatically.
+ */
 function linkSizeInputs(wInput, hInput, getRatio) {
-  let active = false; // whether ratio constraint is active
-
   function constrainFromWidth() {
-    if (!active) return;
-    const w = parseInt(wInput.value);
-    if (!w || w < 1) return;
     const ratio = getRatio();
     if (!ratio) return;
-    const h = w * ratio.rh / ratio.rw;
-    if (!Number.isInteger(h)) {
-      alert(`宽 ${w} 按 ${ratio.rw}:${ratio.rh} 比例计算高为 ${h}，不是整数。\n请调整宽度。`);
+    const w = parseInt(wInput.value);
+    if (!w || w < 1) return;
+    const h = derivedFromWidth(ratio, w);
+    if (h === null) {
+      alert(`宽 ${w} 按 ${ratio.rw}:${ratio.rh} 比例计算高不为整数。\n请调整宽度。`);
       wInput.value = '';
       wInput.focus();
       return;
@@ -28,14 +59,13 @@ function linkSizeInputs(wInput, hInput, getRatio) {
   }
 
   function constrainFromHeight() {
-    if (!active) return;
-    const h = parseInt(hInput.value);
-    if (!h || h < 1) return;
     const ratio = getRatio();
     if (!ratio) return;
-    const w = h * ratio.rw / ratio.rh;
-    if (!Number.isInteger(w)) {
-      alert(`高 ${h} 按 ${ratio.rw}:${ratio.rh} 比例计算宽为 ${w}，不是整数。\n请调整高度。`);
+    const h = parseInt(hInput.value);
+    if (!h || h < 1) return;
+    const w = derivedFromHeight(ratio, h);
+    if (w === null) {
+      alert(`高 ${h} 按 ${ratio.rw}:${ratio.rh} 比例计算宽不为整数。\n请调整高度。`);
       hInput.value = '';
       hInput.focus();
       return;
@@ -43,13 +73,29 @@ function linkSizeInputs(wInput, hInput, getRatio) {
     wInput.value = w;
   }
 
-  wInput.addEventListener('change', () => { constrainFromWidth(); });
-  hInput.addEventListener('change', () => { constrainFromHeight(); });
+  wInput.addEventListener('change', constrainFromWidth);
+  hInput.addEventListener('change', constrainFromHeight);
 
   return {
-    setActive(a) { active = a; },
-    isActive() { return active; },
+    fit() {
+      const ratio = getRatio();
+      return ratio !== null && fitToRatio(ratio, wInput, hInput);
+    },
   };
+}
+
+/** One ratio-button group: toggle active, then hand the button to `apply` (null = free mode). */
+function setupRatioButtons(scope, apply) {
+  const buttons = document.querySelectorAll(`${scope} .ratio-btn`);
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const alreadyActive = btn.classList.contains('active');
+      buttons.forEach(b => b.classList.remove('active'));
+      if (alreadyActive) { apply(null); return; } // toggled off — free mode
+      btn.classList.add('active');
+      apply(btn);
+    });
+  });
 }
 
 // ─── Tab switching ─────────────────────────────────────────────────
@@ -77,7 +123,7 @@ const drawHeight = document.getElementById('draw-height');
 const pixelCanvas = new PixelCanvas(drawCanvas, 16, 16);
 
 let drawRatio = null; // {rw, rh} or null for free mode
-const drawSizeLink = linkSizeInputs(drawWidth, drawHeight, () => drawRatio);
+linkSizeInputs(drawWidth, drawHeight, () => drawRatio);
 
 function applyDrawSize() {
   const w = Math.max(1, parseInt(drawWidth.value) || 16);
@@ -89,43 +135,16 @@ drawWidth.addEventListener('change', applyDrawSize);
 drawHeight.addEventListener('change', applyDrawSize);
 
 // Ratio presets for draw tab
-document.querySelectorAll('#tab-draw .ratio-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const alreadyActive = btn.classList.contains('active');
-    document.querySelectorAll('#tab-draw .ratio-btn').forEach(b => b.classList.remove('active'));
-
-    if (alreadyActive) {
-      // Toggle off — free mode
-      drawRatio = null;
-      drawSizeLink.setActive(false);
-      return;
-    }
-
-    btn.classList.add('active');
-    const [rw, rh] = btn.dataset.ratio.split(':').map(Number);
-    drawRatio = { rw, rh };
-    drawSizeLink.setActive(true);
-
-    // Apply ratio to current values
-    const curW = parseInt(drawWidth.value) || 16;
-    const h = curW * rh / rw;
-    if (!Number.isInteger(h)) {
-      // Try from height instead
-      const curH = parseInt(drawHeight.value) || 16;
-      const w = curH * rw / rh;
-      if (Number.isInteger(w)) {
-        drawWidth.value = w;
-        drawHeight.value = curH;
-      } else {
-        // Default to a nice base size
-        drawWidth.value = rw * 4;
-        drawHeight.value = rh * 4;
-      }
-    } else {
-      drawHeight.value = h;
-    }
-    applyDrawSize();
-  });
+setupRatioButtons('#tab-draw', (btn) => {
+  if (btn === null) { drawRatio = null; return; }
+  const [rw, rh] = btn.dataset.ratio.split(':').map(Number);
+  drawRatio = { rw, rh };
+  if (!fitToRatio(drawRatio, drawWidth, drawHeight)) {
+    // Neither dimension fits the ratio — fall back to a base size
+    drawWidth.value = rw * 4;
+    drawHeight.value = rh * 4;
+  }
+  applyDrawSize();
 });
 
 document.getElementById('draw-color').addEventListener('input', (e) => {
@@ -141,8 +160,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 });
 
 document.getElementById('btn-export-draw').addEventListener('click', () => {
-  const dataURL = pixelCanvas.exportPNG();
-  downloadPNG(dataURL, 'pixel-art-draw.png');
+  downloadPNG(pixelCanvas.exportPNG(), 'pixel-art-draw.png');
 });
 
 // ─── Convert tab ───────────────────────────────────────────────────
@@ -158,36 +176,26 @@ const convertWidth = document.getElementById('convert-width');
 const convertHeight = document.getElementById('convert-height');
 
 let lastImageData = null;
-let lastConvertResult = null;
-let originalAspect = null; // uploaded image's aspect ratio
+let lastConvertGrid = null;
 
 const convertSizeLink = linkSizeInputs(convertWidth, convertHeight, () => {
-  // If "auto" is active, use the image's original ratio
-  const autoBtn = document.querySelector('#tab-convert .ratio-btn[data-ratio="auto"]');
-  if (autoBtn?.classList.contains('active') && originalAspect) {
-    return { rw: Math.round(originalAspect * 100), rh: 100 };
-  }
-  // Otherwise use the selected ratio preset
   const active = document.querySelector('#tab-convert .ratio-btn.active');
-  if (active && active.dataset.ratio !== 'auto') {
-    const [rw, rh] = active.dataset.ratio.split(':').map(Number);
-    return { rw, rh };
+  if (!active) return null;
+  if (active.dataset.ratio === 'auto') {
+    // The uploaded image's aspect ratio (w/h), or null if none uploaded
+    return lastImageData ? lastImageData.width / lastImageData.height : null;
   }
-  return null;
+  const [rw, rh] = active.dataset.ratio.split(':').map(Number);
+  return { rw, rh };
 });
 
 setupUpload(uploadArea, fileInput, (imageData, img) => {
   lastImageData = imageData;
-  originalAspect = imageData.width / imageData.height;
 
-  // Auto-detect: keep current width, calculate height from ratio
-  const curW = parseInt(convertWidth.value) || 32;
-  const h = Math.round(curW / originalAspect);
-  if (h > 0) convertHeight.value = h;
-
-  // Activate "自动" button
+  // Activate 自动 and fit the height to the image's aspect
   document.querySelectorAll('#tab-convert .ratio-btn').forEach(b => b.classList.remove('active'));
   document.querySelector('#tab-convert .ratio-btn[data-ratio="auto"]').classList.add('active');
+  convertSizeLink.fit();
 
   previewImg.src = img.src;
   previewImg.hidden = false;
@@ -198,42 +206,17 @@ setupUpload(uploadArea, fileInput, (imageData, img) => {
 });
 
 // Ratio presets for convert tab
-document.querySelectorAll('#tab-convert .ratio-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const alreadyActive = btn.classList.contains('active');
-
-    if (alreadyActive) {
-      // Toggle off — free mode
-      document.querySelectorAll('#tab-convert .ratio-btn').forEach(b => b.classList.remove('active'));
-      return;
+setupRatioButtons('#tab-convert', (btn) => {
+  if (btn === null) return; // free mode — nothing to reset
+  if (btn.dataset.ratio === 'auto') {
+    convertSizeLink.fit(); // fit to the uploaded image's aspect
+  } else {
+    const [rw, rh] = btn.dataset.ratio.split(':').map(Number);
+    if (!fitToRatio({ rw, rh }, convertWidth, convertHeight)) {
+      convertWidth.value = rw * 4;
+      convertHeight.value = rh * 4;
     }
-
-    document.querySelectorAll('#tab-convert .ratio-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-
-    if (btn.dataset.ratio === 'auto' && originalAspect) {
-      const curW = parseInt(convertWidth.value) || 32;
-      const h = Math.round(curW / originalAspect);
-      if (h > 0) convertHeight.value = h;
-    } else if (btn.dataset.ratio !== 'auto') {
-      const [rw, rh] = btn.dataset.ratio.split(':').map(Number);
-      const curW = parseInt(convertWidth.value) || 32;
-      const h = curW * rh / rw;
-      if (!Number.isInteger(h)) {
-        // Try from height
-        const curH = parseInt(convertHeight.value) || 32;
-        const w = curH * rw / rh;
-        if (Number.isInteger(w)) {
-          convertWidth.value = w;
-        } else {
-          convertHeight.value = curW * rh / rw; // will be caught by input listener
-          return;
-        }
-      } else {
-        convertHeight.value = h;
-      }
-    }
-  });
+  }
 });
 
 btnConvert.addEventListener('click', async () => {
@@ -263,18 +246,10 @@ btnConvert.addEventListener('click', async () => {
   convertHint.hidden = true;
   btnExportConvert.disabled = false;
 
-  lastConvertResult = { grid };
+  lastConvertGrid = grid;
 });
 
 btnExportConvert.addEventListener('click', () => {
-  if (!lastConvertResult) return;
-  const { grid } = lastConvertResult;
-  const exportCellSize = 16;
-  const { data, width, height } = renderGrid(grid, exportCellSize);
-  const c = document.createElement('canvas');
-  c.width = width;
-  c.height = height;
-  const ctx = c.getContext('2d');
-  ctx.putImageData(new ImageData(data, width, height), 0, 0);
-  downloadPNG(c.toDataURL('image/png'), 'pixel-art-convert.png');
+  if (!lastConvertGrid) return;
+  downloadPNG(gridToPNGDataURL(lastConvertGrid, 16), 'pixel-art-convert.png');
 });
