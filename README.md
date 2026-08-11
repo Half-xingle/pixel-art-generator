@@ -48,7 +48,7 @@ CLI 面向 agent 调用设计，支持完整的"转换 → 修改 → 再渲染"
 
 ```bash
 # 1. 照片 → 像素画 + 量化 + 预览
-node cli.js convert photo.jpg --size 16 --palette nes --preview
+node cli.js convert photo.jpg --size 16 --palette nes --preview -o art.png
 
 # 2. 读回网格 JSON（或直接吃 stdout）
 node cli.js pixels art.png --size 16 -o grid.json

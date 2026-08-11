@@ -80,8 +80,8 @@ function showHelp() {
 🎨 像素画生成器 CLI — Pixel Art Generator
 
 用法:
-  node cli.js draw [--grid <json> | --file <path> | -] [--size <n>] -o <file> [--preview] [--json] [--no-color]
-  node cli.js convert <image> [--size <n>] -o <file> [--palette nes] [--preview] [--json] [--no-color]
+  node cli.js draw [--grid <json> | --file <path> | -] [--size <n>] [-o <file>] [--preview] [--json] [--no-color]
+  node cli.js convert <image> [--size <n>] [-o <file>] [--palette nes] [--preview] [--json] [--no-color]
   node cli.js pixels <image> [--size <n>] [-o <file>] [--palette nes] [--preview] [--json] [--no-color]
   node cli.js --help
 
