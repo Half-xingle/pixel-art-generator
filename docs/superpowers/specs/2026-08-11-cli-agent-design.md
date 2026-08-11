@@ -79,6 +79,7 @@ cli.js                 # 三个命令统一入口，共用参数解析与输出
 {"ok": true, "file": "out.png", "grid": {"width": 16, "height": 16}, "colors": 5}
 ```
 - `pixels` 命令无 `-o` 时，stdout 就是网格 JSON 本身（`{"width":…,"height":…,"pixels":[…]}`）——它是 payload，不受 `--json` 影响；此时 `--json` 仅在 stderr 附加一行摘要
+- **stdout 通道规则**：只要 stdout 承载 payload（`pixels` 无 `-o`），任何非 payload 输出（`--preview` 预览文本等）一律走 stderr，无论是否 `--json`；`--json` 模式下 stdout 必须保持纯 JSON
 - `colors` 为网格中不同颜色的去重计数
 - `draw` / `convert` 的 stdout 只有结果信息（中文或 `--json` 包装）
 
