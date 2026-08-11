@@ -105,6 +105,11 @@ function showHelp() {
   --no-color     禁用 ANSI 颜色（同 NO_COLOR 环境变量）
   --help         显示帮助信息
 
+注意:
+  --size 语义因命令而异: draw = 每个像素的显示大小; convert/pixels = 网格最长边
+  pixels 无 -o 时 stdout 永远是网格 JSON 本身(payload); --json 的摘要对象{"ok":true,...}
+  输出到 stderr —— 解析结果请读 stderr, 拿网格请读 stdout
+
 示例:
   node cli.js draw --grid '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]' -o art.png
   node cli.js draw - -o art.png < grid.json

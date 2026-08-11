@@ -58,9 +58,11 @@ node cli.js draw - -o v2.png --preview < grid.json
 ```
 
 - `--json`：结果输出结构化 JSON；错误时 stderr 为 `{"ok":false,"error":...}`，退出码 0/1/2
+- `--json` 契约细节：`pixels` 无 `-o` 时 **stdout 永远是网格 JSON payload**，`--json` 的摘要对象 `{"ok":true,...}` 输出到 **stderr**——拿网格读 stdout，解析结果读 stderr
 - `--preview`：终端 ANSI 色块预览；`--no-color`（或 `NO_COLOR`）时输出 `#rrggbb` 网格
 - `draw -`：从 stdin 读网格 JSON，绕开命令行长度上限（64×64 网格约 30KB）
 - `--palette nes`：量化到经典 NES 16 色
+- **`--size` 双语义警告**：`draw` 的 `--size` 是每个像素的显示大小（网格尺寸由 JSON 决定）；`convert`/`pixels` 的 `--size` 是网格最长边（图片按比例缩放）
 
 ## 技术栈
 
