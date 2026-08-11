@@ -53,3 +53,32 @@ describe('cli convert', () => {
     assert.ok(existsSync(outFile));
   });
 });
+
+describe('cli draw stdin', () => {
+  const outFile = join(__dirname, '..', 'test-stdin-output.png');
+
+  after(() => {
+    try { unlinkSync(outFile); } catch {}
+  });
+
+  it('reads grid JSON from stdin with -', () => {
+    const grid = JSON.stringify({
+      width: 2, height: 2,
+      pixels: [['#ff0000', '#00ff00'], ['#0000ff', '#ffffff']],
+    });
+    const result = spawnSync(process.execPath, [CLI, 'draw', '-', '--size', '2', '-o', outFile], { input: grid, encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    assert.ok(existsSync(outFile));
+  });
+
+  it('accepts a large 64x64 grid via stdin', () => {
+    const rows = [];
+    for (let y = 0; y < 64; y++) {
+      rows.push(Array.from({ length: 64 }, (_, x) => ((x + y) % 2 ? '#ff0000' : '#0000ff')));
+    }
+    const grid = JSON.stringify({ width: 64, height: 64, pixels: rows });
+    assert.ok(grid.length > 30000, `stdin payload is ${grid.length} chars, should exceed 32k arg limit argument`);
+    const result = spawnSync(process.execPath, [CLI, 'draw', '-', '--size', '2', '-o', outFile], { input: grid, encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+  });
+});

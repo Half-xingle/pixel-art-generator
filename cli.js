@@ -20,8 +20,15 @@ function parseArgs(argv) {
     grid: getValue('--grid'),
     file: getValue('--file'),
     output: getValue('-o') || getValue('--output') || 'output.png',
-    input: cmd !== 'draw' && cmd !== '--help' ? args[1] : null,
+    input: args[1],
   };
+}
+
+/** Read all of stdin as UTF-8 text. */
+async function readStdin() {
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  return Buffer.concat(chunks).toString('utf-8');
 }
 
 async function cmdDraw(gridData, outputPath, cellSize) {
@@ -110,8 +117,23 @@ async function main() {
         process.exit(1);
       }
       gridData = json; // Pass entire JSON object (includes width/height/pixels)
+    } else if (input === '-') {
+      let content, json;
+      try {
+        content = await readStdin();
+      } catch {
+        console.error('Error: 无法读取 stdin');
+        process.exit(2);
+      }
+      try {
+        json = JSON.parse(content);
+      } catch {
+        console.error('Error: stdin JSON 格式无效');
+        process.exit(1);
+      }
+      gridData = json;
     } else {
-      console.error('Error: use --grid <json> or --file <path>');
+      console.error('Error: use --grid <json>, --file <path>, or - (stdin)');
       process.exit(1);
     }
     await cmdDraw(gridData, output, size);
