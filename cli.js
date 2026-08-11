@@ -80,26 +80,33 @@ function showHelp() {
 🎨 像素画生成器 CLI — Pixel Art Generator
 
 用法:
-  node cli.js draw --grid <json> [--size <n>] -o <file>
-  node cli.js draw --file <path> -o <file>
-  node cli.js convert <image> --size <n> -o <file>
+  node cli.js draw [--grid <json> | --file <path> | -] [--size <n>] -o <file> [--preview] [--json] [--no-color]
+  node cli.js convert <image> [--size <n>] -o <file> [--palette nes] [--preview] [--json] [--no-color]
+  node cli.js pixels <image> [--size <n>] [-o <file>] [--palette nes] [--preview] [--json] [--no-color]
   node cli.js --help
 
 命令:
-  draw      从颜色网格生成像素画
-  convert   将图片转换为像素画（自动保留宽高比）
+  draw      网格 JSON → 像素画 PNG（- 表示从 stdin 读网格）
+  convert   图片 → 像素画 PNG（自动保留宽高比）
+  pixels    图片 → 网格 JSON（-o 缺省时输出到 stdout，供读取与修改）
 
 选项:
-  --size <n>     draw: 每个像素的显示大小（默认 32，越大输出图越精细）
-                 convert: 最长边的网格数（默认 16），另一侧自动按比例计算
+  --size <n>     draw: 每个像素的显示大小（默认 16）
+                 convert/pixels: 最长边的网格数（默认 16），另一侧自动按比例计算
   --grid <json>  颜色二维数组 JSON
   --file <path>  JSON 文件路径（含 width/height/pixels 字段）
-  -o <file>      输出图片路径，默认 output.png
+  -o <file>      输出路径；draw/convert 默认 output.png，pixels 缺省输出到 stdout
+  --palette <n>  量化到调色板（支持: nes = 经典 NES 16 色）
+  --preview      终端预览网格（ANSI 色块；--no-color 时输出 #rrggbb 网格）
+  --json         结果输出为 JSON（错误时 stderr 输出 {"ok":false,...}）
+  --no-color     禁用 ANSI 颜色（同 NO_COLOR 环境变量）
   --help         显示帮助信息
 
 示例:
   node cli.js draw --grid '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]' -o art.png
-  node cli.js convert photo.jpg --size 32 -o pixel-art.png
+  node cli.js draw - -o art.png < grid.json
+  node cli.js convert photo.jpg --size 32 --palette nes --preview -o pixel-art.png
+  node cli.js pixels art.png -o grid.json
 `);
 }
 

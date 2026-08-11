@@ -42,6 +42,26 @@ node cli.js --help
 }
 ```
 
+## Agent 使用
+
+CLI 面向 agent 调用设计，支持完整的"转换 → 修改 → 再渲染"回环：
+
+```bash
+# 1. 照片 → 像素画 + 量化 + 预览
+node cli.js convert photo.jpg --size 16 --palette nes --preview
+
+# 2. 读回网格 JSON（或直接吃 stdout）
+node cli.js pixels art.png --size 16 -o grid.json
+
+# 3. 修改后的网格 → 新 PNG
+node cli.js draw - -o v2.png --preview < grid.json
+```
+
+- `--json`：结果输出结构化 JSON；错误时 stderr 为 `{"ok":false,"error":...}`，退出码 0/1/2
+- `--preview`：终端 ANSI 色块预览；`--no-color`（或 `NO_COLOR`）时输出 `#rrggbb` 网格
+- `draw -`：从 stdin 读网格 JSON，绕开命令行长度上限（64×64 网格约 30KB）
+- `--palette nes`：量化到经典 NES 16 色
+
 ## 技术栈
 
 - 前端：Vite + 原生 JS + Canvas API
