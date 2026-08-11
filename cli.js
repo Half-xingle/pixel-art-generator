@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { jsonToGrid, renderGrid, toPixelArt } from './src/core/processor.js';
+import { jsonToGrid, renderGrid, toPixelArt, gridToJSON } from './src/core/processor.js';
 import { readImage, readImageSize, writePNG } from './src/cli/image.js';
 import { quantizeGrid, DEFAULT_PALETTE } from './src/core/palette.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 const CELL_SIZE = 32;
 
@@ -20,7 +20,7 @@ function parseArgs(argv) {
     size: parseInt(getValue('--size') || '16', 10),
     grid: getValue('--grid'),
     file: getValue('--file'),
-    output: getValue('-o') || getValue('--output') || 'output.png',
+    output: getValue('-o') || getValue('--output') || null,
     input: args[1],
     palette: getValue('--palette'),
     preview: args.includes('--preview'),
@@ -104,8 +104,24 @@ async function cmdConvert(imagePath, maxSize, palette, outputPath) {
   console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);
 }
 
+async function cmdPixels(imagePath, maxSize, palette, outputPath, json) {
+  const { width, height } = await readImageSize(imagePath);
+  const { gridWidth, gridHeight } = computeGridDims(width, height, maxSize);
+  const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
+  let grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
+  if (palette) grid = quantizeGrid(grid, palette);
+  const payload = JSON.stringify(gridToJSON(grid));
+  if (outputPath) {
+    writeFileSync(outputPath, payload, 'utf-8');
+    console.log(`OK: grid saved to ${outputPath} (${gridWidth}×${gridHeight})`);
+  } else {
+    // stdout is the payload itself — nothing else may be printed
+    process.stdout.write(payload + '\n');
+  }
+}
+
 async function main() {
-  const { command, input, size, grid, file, output, palette } = parseArgs(process.argv);
+  const { command, input, size, grid, file, output, palette, json } = parseArgs(process.argv);
 
   if (command === 'draw') {
     let gridData;
@@ -150,14 +166,21 @@ async function main() {
       console.error('Error: use --grid <json>, --file <path>, or - (stdin)');
       process.exit(1);
     }
-    await cmdDraw(gridData, output, size);
+    await cmdDraw(gridData, output || 'output.png', size);
   } else if (command === 'convert') {
     if (!input) {
       console.error('Error: provide an image path');
       console.error('Usage: node cli.js convert <image> --size <n> -o <file>');
       process.exit(1);
     }
-    await cmdConvert(input, size, resolvePalette(palette), output);
+    await cmdConvert(input, size, resolvePalette(palette), output || 'output.png');
+  } else if (command === 'pixels') {
+    if (!input) {
+      console.error('Error: provide an image path');
+      console.error('Usage: node cli.js pixels <image> [--size <n>] [-o <file>]');
+      process.exit(1);
+    }
+    await cmdPixels(input, size, resolvePalette(palette), output, json);
   } else if (command === '--help' || command === '-h' || command === undefined) {
     showHelp();
   } else {

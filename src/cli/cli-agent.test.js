@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -47,5 +47,58 @@ describe('cli palette', () => {
     const result = spawnSync(process.execPath, [CLI, 'convert', testInput, '--palette', 'bogus', '-o', outFile], { encoding: 'utf-8' });
     assert.strictEqual(result.status, 1);
     assert.ok(result.stderr.includes('未知调色板'));
+  });
+});
+
+describe('cli pixels round-trip', () => {
+  const gridFile = join(__dirname, '..', 'test-grid.json');
+  const gridFile2 = join(__dirname, '..', 'test-grid2.json');
+  const pngFile = join(__dirname, '..', 'test-roundtrip.png');
+  const pngOut = join(__dirname, '..', 'test-roundtrip-out.png');
+  const testInput = join(__dirname, '..', 'test-roundtrip-input.png');
+
+  before(async () => {
+    const { writePNG } = await import('./image.js');
+    const { renderGrid } = await import('../core/processor.js');
+    const grid = [
+      [{ r: 255, g: 0, b: 0, a: 255 }, { r: 0, g: 255, b: 0, a: 255 }],
+      [{ r: 0, g: 0, b: 255, a: 255 }, { r: 255, g: 255, b: 255, a: 255 }],
+    ];
+    const { data, width, height } = renderGrid(grid, 8);
+    await writePNG(data, width, height, testInput);
+  });
+
+  after(() => {
+    for (const f of [gridFile, gridFile2, pngFile, pngOut, testInput]) {
+      try { unlinkSync(f); } catch {}
+    }
+  });
+
+  it('outputs grid JSON to stdout by default', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2'], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.width, 2);
+    assert.equal(json.height, 2);
+    assert.equal(json.pixels[0][0], '#ff0000');
+    assert.equal(json.pixels[1][1], '#ffffff');
+  });
+
+  it('writes grid JSON to a file with -o', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2', '-o', gridFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('OK'));
+    assert.equal(JSON.parse(readFileSync(gridFile, 'utf-8')).pixels[0][0], '#ff0000');
+  });
+
+  it('round-trips: pixels → draw → pixels keeps the grid identical', () => {
+    spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2', '-o', gridFile], { encoding: 'utf-8' });
+    const draw = spawnSync(process.execPath, [CLI, 'draw', '--file', gridFile, '--size', '8', '-o', pngOut], { encoding: 'utf-8' });
+    assert.strictEqual(draw.status, 0, `stderr: ${draw.stderr}`);
+    const back = spawnSync(process.execPath, [CLI, 'pixels', pngOut, '--size', '2', '-o', gridFile2], { encoding: 'utf-8' });
+    assert.strictEqual(back.status, 0, `stderr: ${back.stderr}`);
+    const a = JSON.parse(readFileSync(gridFile, 'utf-8'));
+    const b = JSON.parse(readFileSync(gridFile2, 'utf-8'));
+    assert.deepEqual(a, b);
   });
 });
