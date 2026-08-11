@@ -135,3 +135,33 @@ describe('cli --json', () => {
     assert.equal(result.stdout, '');
   });
 });
+
+describe('cli --preview', () => {
+  const outFile = join(__dirname, '..', 'test-preview-output.png');
+  const grid = '[["#ff0000","#00ff00"],["#0000ff","#ffffff"]]';
+
+  after(() => {
+    try { unlinkSync(outFile); } catch {}
+  });
+
+  it('draw --preview prints ANSI blocks', () => {
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--size', '2', '--grid', grid, '--preview', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('\x1b[48;2;255;0;0m'));
+  });
+
+  it('draw --preview --no-color prints a hex grid', () => {
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--size', '2', '--grid', grid, '--preview', '--no-color', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    assert.ok(result.stdout.includes('#ff0000'));
+    assert.ok(!result.stdout.includes('\x1b['));
+  });
+
+  it('draw --preview --json keeps stdout pure JSON', () => {
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--size', '2', '--grid', grid, '--preview', '--json', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.ok, true);
+    assert.ok(result.stderr.includes('\x1b[48;2;255;0;0m'));
+  });
+});

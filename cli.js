@@ -2,6 +2,7 @@
 import { jsonToGrid, renderGrid, toPixelArt, gridToJSON, rgbaToHex } from './src/core/processor.js';
 import { readImage, readImageSize, writePNG } from './src/cli/image.js';
 import { quantizeGrid, DEFAULT_PALETTE } from './src/core/palette.js';
+import { gridToText } from './src/cli/preview.js';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const CELL_SIZE = 32;
@@ -50,9 +51,18 @@ function countColors(grid) {
   return new Set(grid.flat().map(rgbaToHex)).size;
 }
 
+/** Print the grid as terminal text; JSON mode routes it to stderr to keep stdout pure. */
+function printPreview(grid) {
+  if (!opts.preview) return;
+  const text = gridToText(grid, { color: !opts.noColor });
+  if (opts.json) console.error(text);
+  else console.log(text);
+}
+
 async function cmdDraw(gridData, outputPath, cellSize) {
   // jsonToGrid accepts a bare 2D array (--grid), {width,height,pixels}, or legacy {size,pixels}
   const grid = jsonToGrid(gridData);
+  printPreview(grid);
   const cs = cellSize || CELL_SIZE;
   const { data, width, height } = renderGrid(grid, cs);
   await writePNG(data, width, height, outputPath);
@@ -116,6 +126,7 @@ async function cmdConvert(imagePath, maxSize, palette, outputPath) {
   const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
   let grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
   if (palette) grid = quantizeGrid(grid, palette);
+  printPreview(grid);
   const result = renderGrid(grid, CELL_SIZE);
   await writePNG(result.data, result.width, result.height, outputPath);
   if (opts.json) {
@@ -131,6 +142,7 @@ async function cmdPixels(imagePath, maxSize, palette, outputPath, json) {
   const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
   let grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
   if (palette) grid = quantizeGrid(grid, palette);
+  printPreview(grid);
   const payload = JSON.stringify(gridToJSON(grid));
   if (outputPath) {
     writeFileSync(outputPath, payload, 'utf-8');
