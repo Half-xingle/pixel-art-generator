@@ -51,11 +51,14 @@ function countColors(grid) {
   return new Set(grid.flat().map(rgbaToHex)).size;
 }
 
-/** Print the grid as terminal text; JSON mode routes it to stderr to keep stdout pure. */
-function printPreview(grid) {
+/**
+ * Print the grid as terminal text. JSON mode routes it to stderr to keep
+ * stdout pure; forceStderr forces the same when stdout carries a payload.
+ */
+function printPreview(grid, forceStderr = false) {
   if (!opts.preview) return;
   const text = gridToText(grid, { color: !opts.noColor });
-  if (opts.json) console.error(text);
+  if (opts.json || forceStderr) console.error(text);
   else console.log(text);
 }
 
@@ -143,13 +146,14 @@ async function cmdConvert(imagePath, maxSize, palette, outputPath) {
   }
 }
 
-async function cmdPixels(imagePath, maxSize, palette, outputPath, json) {
+async function cmdPixels(imagePath, maxSize, palette, outputPath) {
   const { width, height } = await readImageSize(imagePath);
   const { gridWidth, gridHeight } = computeGridDims(width, height, maxSize);
   const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
   let grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
   if (palette) grid = quantizeGrid(grid, palette);
-  printPreview(grid);
+  // stdout is the payload itself — force the preview off stdout when no -o
+  printPreview(grid, !outputPath);
   const payload = JSON.stringify(gridToJSON(grid));
   if (outputPath) {
     writeFileSync(outputPath, payload, 'utf-8');
@@ -217,7 +221,7 @@ async function main() {
     if (!input) {
       fail('provide an image path', 1);
     }
-    await cmdPixels(input, size, resolvePalette(palette), output, json);
+    await cmdPixels(input, size, resolvePalette(palette), output);
   } else if (command === '--help' || command === '-h' || command === undefined) {
     showHelp();
   } else {

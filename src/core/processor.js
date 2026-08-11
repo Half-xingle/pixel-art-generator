@@ -119,7 +119,7 @@ export function jsonToGrid(json) {
     pixels = json.pixels;
     h = json.height || json.size;
   }
-  if (!pixels || h < 1 || !Array.isArray(pixels[0])) {
+  if (!pixels || h < 1 || h > pixels.length || !Array.isArray(pixels[0])) {
     throw new RangeError('invalid grid JSON: expected pixels array');
   }
   const grid = [];

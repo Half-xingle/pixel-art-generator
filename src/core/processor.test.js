@@ -103,4 +103,11 @@ describe('processor', () => {
     assert.equal(grid[0].length, 2);
     assert.equal(grid[0][0].r, 255);
   });
+
+  it('jsonToGrid rejects a height larger than the pixels array', () => {
+    assert.throws(
+      () => jsonToGrid({ width: 2, height: 2, pixels: [['#ff0000']] }),
+      /invalid grid JSON: expected pixels array/
+    );
+  });
 });

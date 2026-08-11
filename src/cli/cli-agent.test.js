@@ -1,7 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,7 +37,7 @@ describe('cli palette', () => {
     const result = spawnSync(process.execPath, [CLI, 'convert', testInput, '--size', '8', '--palette', 'nes', '-o', outFile], { encoding: 'utf-8' });
     assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
     const { default: sharp } = await import('sharp');
-    const { data, info } = await sharp(outFile).raw().toBuffer({ resolveWithObject: true });
+    const { data } = await sharp(outFile).raw().toBuffer({ resolveWithObject: true });
     const colors = new Set();
     for (let i = 0; i < data.length; i += 4) colors.add(`${data[i]},${data[i + 1]},${data[i + 2]}`);
     assert.ok(colors.size <= 16, `expected <= 16 colors, got ${colors.size}`);
@@ -48,13 +48,21 @@ describe('cli palette', () => {
     assert.strictEqual(result.status, 1);
     assert.ok(result.stderr.includes('未知调色板'));
   });
+
+  it('pixels --palette nes outputs at most 16 distinct colors', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '8', '--palette', 'nes'], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    const distinct = new Set(json.pixels.flat());
+    assert.ok(distinct.size <= 16, `expected <= 16 distinct colors, got ${distinct.size}`);
+  });
 });
 
 describe('cli pixels round-trip', () => {
   const gridFile = join(__dirname, '..', 'test-grid.json');
   const gridFile2 = join(__dirname, '..', 'test-grid2.json');
-  const pngFile = join(__dirname, '..', 'test-roundtrip.png');
   const pngOut = join(__dirname, '..', 'test-roundtrip-out.png');
+  const pipeOut = join(__dirname, '..', 'test-roundtrip-pipe.png');
   const testInput = join(__dirname, '..', 'test-roundtrip-input.png');
 
   before(async () => {
@@ -69,7 +77,7 @@ describe('cli pixels round-trip', () => {
   });
 
   after(() => {
-    for (const f of [gridFile, gridFile2, pngFile, pngOut, testInput]) {
+    for (const f of [gridFile, gridFile2, pngOut, pipeOut, testInput]) {
       try { unlinkSync(f); } catch {}
     }
   });
@@ -101,6 +109,63 @@ describe('cli pixels round-trip', () => {
     const b = JSON.parse(readFileSync(gridFile2, 'utf-8'));
     assert.deepEqual(a, b);
   });
+
+  it('fails with exit 1 when no image is given', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels'], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 1);
+  });
+
+  it('pixels -o --json prints a parseable result object', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2', '--json', '-o', gridFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.ok, true);
+    assert.equal(json.file, gridFile);
+    assert.equal(json.grid.width, 2);
+    assert.equal(json.grid.height, 2);
+    assert.equal(json.colors, 4);
+  });
+
+  it('pixels --json without -o keeps stdout a pure grid payload', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2', '--json'], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const payload = JSON.parse(result.stdout);
+    assert.equal(payload.width, 2);
+    assert.equal(payload.height, 2);
+    assert.equal(payload.pixels[0][0], '#ff0000');
+    const summary = JSON.parse(result.stderr);
+    assert.equal(summary.ok, true);
+    assert.equal(summary.file, null);
+    assert.equal(summary.grid.width, 2);
+    assert.equal(summary.colors, 4);
+  });
+
+  it('pixels --preview without -o keeps stdout a pure JSON payload (C1 regression)', () => {
+    const result = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2', '--preview'], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.pixels[0][0], '#ff0000');
+    assert.ok(result.stderr.length > 0, 'preview should be routed to stderr');
+  });
+
+  it('pixels stdout pipes into draw - for a full round-trip', () => {
+    const pixels = spawnSync(process.execPath, [CLI, 'pixels', testInput, '--size', '2'], { encoding: 'utf-8' });
+    assert.strictEqual(pixels.status, 0, `stderr: ${pixels.stderr}`);
+    const draw = spawnSync(process.execPath, [CLI, 'draw', '-', '--size', '8', '-o', pipeOut], { encoding: 'utf-8', input: pixels.stdout });
+    assert.strictEqual(draw.status, 0, `stderr: ${draw.stderr}`);
+    assert.ok(readFileSync(pipeOut).length > 0, 'output PNG should exist');
+  });
+
+  it('convert --json prints a parseable result object', () => {
+    const result = spawnSync(process.execPath, [CLI, 'convert', testInput, '--size', '2', '--json', '-o', pngOut], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.ok, true);
+    assert.equal(json.file, pngOut);
+    assert.equal(json.grid.width, 2);
+    assert.equal(json.grid.height, 2);
+    assert.equal(json.colors, 4);
+  });
 });
 
 describe('cli --json', () => {
@@ -119,6 +184,14 @@ describe('cli --json', () => {
     assert.equal(json.grid.width, 2);
     assert.equal(json.grid.height, 2);
     assert.equal(json.colors, 4);
+  });
+
+  it('draw --json counts distinct colors (dedups repeats)', () => {
+    const grid = '[["#ff0000","#00ff00"],["#0000ff","#00ff00"]]';
+    const result = spawnSync(process.execPath, [CLI, 'draw', '--size', '2', '--grid', grid, '--json', '-o', outFile], { encoding: 'utf-8' });
+    assert.strictEqual(result.status, 0, `stderr: ${result.stderr}`);
+    const json = JSON.parse(result.stdout);
+    assert.equal(json.colors, 3);
   });
 
   it('convert --json prints error JSON on stderr with exit 2 for missing file', () => {
