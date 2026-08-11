@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { jsonToGrid, renderGrid, toPixelArt } from './src/core/processor.js';
 import { readImage, readImageSize, writePNG } from './src/cli/image.js';
+import { quantizeGrid, DEFAULT_PALETTE } from './src/core/palette.js';
 import { readFileSync } from 'node:fs';
 
 const CELL_SIZE = 32;
@@ -21,6 +22,10 @@ function parseArgs(argv) {
     file: getValue('--file'),
     output: getValue('-o') || getValue('--output') || 'output.png',
     input: args[1],
+    palette: getValue('--palette'),
+    preview: args.includes('--preview'),
+    json: args.includes('--json'),
+    noColor: args.includes('--no-color') || process.env.NO_COLOR !== undefined,
   };
 }
 
@@ -70,28 +75,37 @@ function showHelp() {
 `);
 }
 
-async function cmdConvert(imagePath, maxSize, outputPath) {
-  const { width, height } = await readImageSize(imagePath);
-  // Compute grid dimensions preserving aspect ratio
+/** Grid dimensions preserving aspect ratio; maxSize applies to the longest edge. */
+function computeGridDims(width, height, maxSize) {
   const aspect = width / height;
-  let gridWidth, gridHeight;
   if (aspect >= 1) {
-    gridWidth = maxSize;
-    gridHeight = Math.max(1, Math.round(maxSize / aspect));
-  } else {
-    gridWidth = Math.max(1, Math.round(maxSize * aspect));
-    gridHeight = maxSize;
+    return { gridWidth: maxSize, gridHeight: Math.max(1, Math.round(maxSize / aspect)) };
   }
+  return { gridWidth: Math.max(1, Math.round(maxSize * aspect)), gridHeight: maxSize };
+}
+
+/** Resolve a --palette name to a palette array; unknown names exit(1). */
+function resolvePalette(name) {
+  if (!name) return null;
+  if (name === 'nes') return DEFAULT_PALETTE;
+  console.error(`Error: 未知调色板: ${name}（支持: nes）`);
+  process.exit(1);
+}
+
+async function cmdConvert(imagePath, maxSize, palette, outputPath) {
+  const { width, height } = await readImageSize(imagePath);
+  const { gridWidth, gridHeight } = computeGridDims(width, height, maxSize);
   // Decode already downscaled to the grid — avoids decoding the full image
   const { data, width: decodedW, height: decodedH } = await readImage(imagePath, gridWidth, gridHeight);
-  const grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
+  let grid = toPixelArt(data, decodedW, decodedH, gridWidth, gridHeight);
+  if (palette) grid = quantizeGrid(grid, palette);
   const result = renderGrid(grid, CELL_SIZE);
   await writePNG(result.data, result.width, result.height, outputPath);
   console.log(`OK: pixel art saved to ${outputPath} (${gridWidth}×${gridHeight})`);
 }
 
 async function main() {
-  const { command, input, size, grid, file, output } = parseArgs(process.argv);
+  const { command, input, size, grid, file, output, palette } = parseArgs(process.argv);
 
   if (command === 'draw') {
     let gridData;
@@ -143,7 +157,7 @@ async function main() {
       console.error('Usage: node cli.js convert <image> --size <n> -o <file>');
       process.exit(1);
     }
-    await cmdConvert(input, size, output);
+    await cmdConvert(input, size, resolvePalette(palette), output);
   } else if (command === '--help' || command === '-h' || command === undefined) {
     showHelp();
   } else {
