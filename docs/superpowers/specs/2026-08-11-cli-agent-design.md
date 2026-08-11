@@ -42,10 +42,10 @@ node cli.js convert <image> [--size <n>] [--palette nes] -o out.png [--preview] 
 
 ```
 # 1. 照片 → 像素画 + 量化 + 预览
-node cli.js convert photo.jpg --size 16 --palette nes --preview
+node cli.js convert photo.jpg --size 16 --palette nes --preview -o art.png
 
 # 2. 读回网格 JSON，修改颜色/形状
-node cli.js pixels out.png --size 16 -o grid.json   # 或直接吃 stdout
+node cli.js pixels art.png --size 16 -o grid.json   # 或直接吃 stdout
 
 # 3. 修改后的网格 → 新 PNG
 node cli.js draw - -o v2.png --preview < grid.json
